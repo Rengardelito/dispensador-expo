@@ -18,7 +18,7 @@
         
         <!-- Estado de la conexión -->
         <div class="text-center text-sm mb-6">
-            <span id="connectionStatus" class="inline-block px-3 py-1 rounded-full font-semibold">Desconectado</span>
+            <span id="connectionStatus" class="inline-block px-3 py-1 rounded-full font-semibold">Conectando...</span>
         </div>
 
         <!-- Sección de Control Inmediato -->
@@ -54,7 +54,7 @@
 
     <script>
         // Configuración de MQTT
-        const BROKER_URL = 'wss://broker.hivemq.com:8884'; // Puerto seguro para clientes web
+        const BROKER_URL = 'wss://test.mosquitto.org:8081'; // Broker alternativo con menos restricciones
         const CLIENT_ID = 'webclient-' + Math.random().toString(16).substr(2, 8);
         const TOPIC_COMANDO = 'dispensador/comando';
         const TOPIC_PROGRAMACION = 'dispensador/programacion';
@@ -103,7 +103,14 @@
                 connectionStatus.textContent = 'Error';
                 connectionStatus.classList.remove('bg-yellow-500');
                 connectionStatus.classList.add('bg-red-600');
-                showMessage('Fallo en la conexión. Revisa tu red.', true);
+                showMessage('Fallo en la conexión. Revisa tu red o el broker.', true);
+            });
+            
+            client.on('offline', () => {
+                console.log('Desconectado de MQTT');
+                connectionStatus.textContent = 'Desconectado';
+                connectionStatus.classList.remove('bg-yellow-500', 'bg-green-600');
+                connectionStatus.classList.add('bg-red-600');
             });
         }
         
@@ -149,3 +156,5 @@
     </script>
 </body>
 </html>
+
+
