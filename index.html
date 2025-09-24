@@ -10,6 +10,12 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+        .message-success {
+            background-color: #10B981; /* Verde esmeralda */
+        }
+        .message-error {
+            background-color: #EF4444; /* Rojo */
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-white flex items-center justify-center min-h-screen p-4">
@@ -18,7 +24,7 @@
         
         <!-- Estado de la conexión -->
         <div class="text-center text-sm mb-6">
-            <span id="connectionStatus" class="inline-block px-3 py-1 rounded-full font-semibold">Conectando...</span>
+            <span id="connectionStatus" class="inline-block px-3 py-1 rounded-full font-semibold transition duration-300">Conectando...</span>
         </div>
 
         <!-- Sección de Control Inmediato -->
@@ -27,7 +33,7 @@
             <p class="text-sm text-center text-gray-400 mb-4">
                 Presiona el botón para dispensar comida al instante.
             </p>
-            <button id="moveServoBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-full transition duration-300">
+            <button id="moveServoBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-full transition duration-300 transform hover:scale-105">
                 Dispensar Ahora
             </button>
         </div>
@@ -41,25 +47,26 @@
             <div class="flex items-center space-x-2 mb-4">
                 <input type="time" id="scheduledTimeInput" class="flex-grow bg-gray-700 text-white rounded-lg p-3 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300">
             </div>
-            <button id="scheduleBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-full transition duration-300">
+            <button id="scheduleBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-full transition duration-300 transform hover:scale-105">
                 Programar
             </button>
         </div>
         
         <!-- Contenedor para mensajes de estado -->
-        <div id="messageContainer" class="mt-6 p-4 rounded-lg text-sm hidden">
+        <div id="messageContainer" class="mt-6 p-4 rounded-lg text-sm transition duration-300 opacity-0">
             <p id="messageText"></p>
         </div>
     </div>
 
     <script>
         // Configuración de MQTT
-        const BROKER_URL = 'wss://test.mosquitto.org:8081'; // Broker alternativo con menos restricciones
+        const BROKER_URL = 'wss://test.mosquitto.org:8081';
         const CLIENT_ID = 'webclient-' + Math.random().toString(16).substr(2, 8);
         const TOPIC_COMANDO = 'dispensador/comando';
         const TOPIC_PROGRAMACION = 'dispensador/programacion';
 
         let client;
+        let messageTimeout;
 
         // Elementos de la interfaz de usuario
         const connectionStatus = document.getElementById('connectionStatus');
@@ -69,17 +76,26 @@
         const messageContainer = document.getElementById('messageContainer');
         const messageText = document.getElementById('messageText');
 
-        // Función para mostrar mensajes en la UI
+        // Función para mostrar y ocultar mensajes en la UI
         function showMessage(text, isError = false) {
-            messageContainer.classList.remove('hidden');
+            clearTimeout(messageTimeout);
+            messageContainer.classList.remove('hidden', 'opacity-0');
+            messageContainer.classList.add('opacity-100');
+            
             if (isError) {
-                messageContainer.classList.remove('bg-green-600');
-                messageContainer.classList.add('bg-red-600');
+                messageContainer.classList.remove('message-success');
+                messageContainer.classList.add('message-error');
             } else {
-                messageContainer.classList.remove('bg-red-600');
-                messageContainer.classList.add('bg-green-600');
+                messageContainer.classList.remove('message-error');
+                messageContainer.classList.add('message-success');
             }
             messageText.textContent = text;
+            
+            // Ocultar el mensaje después de 5 segundos
+            messageTimeout = setTimeout(() => {
+                messageContainer.classList.remove('opacity-100');
+                messageContainer.classList.add('opacity-0');
+            }, 5000);
         }
 
         // Conectar al broker MQTT
@@ -141,6 +157,8 @@
                             console.error('Error de publicación:', err);
                         } else {
                             showMessage(`¡Comida programada para las ${time}!`);
+                            // Reinicia el campo de tiempo para la próxima instrucción
+                            scheduledTimeInput.value = '';
                         }
                     });
                 } else {
@@ -156,5 +174,3 @@
     </script>
 </body>
 </html>
-
-
