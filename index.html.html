@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dispensador de Comida Remoto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white flex items-center justify-center min-h-screen p-4">
+    <div class="bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-sm">
+        <h1 class="text-3xl font-bold text-center mb-6">Dispensador de Comida</h1>
+        
+        <!-- Estado de la conexión -->
+        <div class="text-center text-sm mb-6">
+            <span id="connectionStatus" class="inline-block px-3 py-1 rounded-full font-semibold">Desconectado</span>
+        </div>
+
+        <!-- Sección de Control Inmediato -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-center">Control Inmediato</h2>
+            <p class="text-sm text-center text-gray-400 mb-4">
+                Presiona el botón para dispensar comida al instante.
+            </p>
+            <button id="moveServoBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-full transition duration-300">
+                Dispensar Ahora
+            </button>
+        </div>
+
+        <!-- Sección de Programación -->
+        <div>
+            <h2 class="text-xl font-semibold mb-4 text-center">Programar Comida</h2>
+            <p class="text-sm text-center text-gray-400 mb-4">
+                Elige una hora para dispensar comida automáticamente.
+            </p>
+            <div class="flex items-center space-x-2 mb-4">
+                <input type="time" id="scheduledTimeInput" class="flex-grow bg-gray-700 text-white rounded-lg p-3 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300">
+            </div>
+            <button id="scheduleBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-full transition duration-300">
+                Programar
+            </button>
+        </div>
+        
+        <!-- Contenedor para mensajes de estado -->
+        <div id="messageContainer" class="mt-6 p-4 rounded-lg text-sm hidden">
+            <p id="messageText"></p>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de MQTT
+        const BROKER_URL = 'wss://broker.hivemq.com:8884'; // Puerto seguro para clientes web
+        const CLIENT_ID = 'webclient-' + Math.random().toString(16).substr(2, 8);
+        const TOPIC_COMANDO = 'dispensador/comando';
+        const TOPIC_PROGRAMACION = 'dispensador/programacion';
+
+        let client;
+
+        // Elementos de la interfaz de usuario
+        const connectionStatus = document.getElementById('connectionStatus');
+        const moveServoBtn = document.getElementById('moveServoBtn');
+        const scheduledTimeInput = document.getElementById('scheduledTimeInput');
+        const scheduleBtn = document.getElementById('scheduleBtn');
+        const messageContainer = document.getElementById('messageContainer');
+        const messageText = document.getElementById('messageText');
+
+        // Función para mostrar mensajes en la UI
+        function showMessage(text, isError = false) {
+            messageContainer.classList.remove('hidden');
+            if (isError) {
+                messageContainer.classList.remove('bg-green-600');
+                messageContainer.classList.add('bg-red-600');
+            } else {
+                messageContainer.classList.remove('bg-red-600');
+                messageContainer.classList.add('bg-green-600');
+            }
+            messageText.textContent = text;
+        }
+
+        // Conectar al broker MQTT
+        function connectMqtt() {
+            connectionStatus.textContent = 'Conectando...';
+            connectionStatus.classList.remove('bg-green-600', 'bg-red-600');
+            connectionStatus.classList.add('bg-yellow-500');
+
+            client = mqtt.connect(BROKER_URL, { clientId: CLIENT_ID });
+
+            client.on('connect', () => {
+                console.log('Conectado a MQTT');
+                connectionStatus.textContent = 'Conectado';
+                connectionStatus.classList.remove('bg-yellow-500');
+                connectionStatus.classList.add('bg-green-600');
+                showMessage('Conexión exitosa. ¡Listo para interactuar!');
+            });
+
+            client.on('error', (error) => {
+                console.error('Error de conexión MQTT:', error);
+                connectionStatus.textContent = 'Error';
+                connectionStatus.classList.remove('bg-yellow-500');
+                connectionStatus.classList.add('bg-red-600');
+                showMessage('Fallo en la conexión. Revisa tu red.', true);
+            });
+        }
+        
+        // Evento para mover el servo
+        moveServoBtn.addEventListener('click', () => {
+            if (client && client.connected) {
+                client.publish(TOPIC_COMANDO, 'MoverServo', (err) => {
+                    if (err) {
+                        showMessage('Error al enviar el comando. Inténtalo de nuevo.', true);
+                        console.error('Error de publicación:', err);
+                    } else {
+                        showMessage('¡Comando "Dispensar Ahora" enviado con éxito!');
+                    }
+                });
+            } else {
+                showMessage('¡Aún no estás conectado! Espera o recarga la página.', true);
+            }
+        });
+
+        // Evento para programar la hora
+        scheduleBtn.addEventListener('click', () => {
+            const time = scheduledTimeInput.value;
+            if (time) {
+                if (client && client.connected) {
+                    client.publish(TOPIC_PROGRAMACION, time, (err) => {
+                        if (err) {
+                            showMessage('Error al programar. Inténtalo de nuevo.', true);
+                            console.error('Error de publicación:', err);
+                        } else {
+                            showMessage(`¡Comida programada para las ${time}!`);
+                        }
+                    });
+                } else {
+                    showMessage('¡Aún no estás conectado! Espera o recarga la página.', true);
+                }
+            } else {
+                showMessage('Por favor, selecciona una hora.', true);
+            }
+        });
+
+        // Iniciar la conexión cuando la página cargue
+        document.addEventListener('DOMContentLoaded', connectMqtt);
+    </script>
+</body>
+</html>
